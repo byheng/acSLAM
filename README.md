@@ -90,9 +90,11 @@ vivado_hls -f script.tcl
 ### Step2. Rebuild Vivado Project in ```<path-to-proj>/Vivado```
 
 Open Vivado 2019.1 command terminal and run these commands to rebuild Vivado project:
+NOTE:```ORB_extractor_1_bd.tcl``` only use for ZCU104, another script file ```ORB_106.tcl``` use for ZCU106
 ```
 cd <path-to-proj>/Vivado
-source ./ORB_extractor_1_bd.tcl
+source ./ORB_extractor_1_bd.tcl # for ZCU104
+# source ./ORB_106.tcl # for ZCU106
 ```
 The script will generate a project with a block design. Then please create the hdl wrapper and generate the bitstream in vivado.
 ```
