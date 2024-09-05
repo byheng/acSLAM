@@ -107,6 +107,12 @@ launch_runs impl_1 -to_step write_bitstream -jobs 48
 
 Run code in ```<path-to-proj>/SW/jupyter_notebooks/ORB/ORB.ipynb``` to overlay the bitstream and test the hardware.
 
+Or 
+```bash
+source  /etc/profile.d/pynq_venv.sh
+sudo -E python LoadBitstream.py SW/jupyter_notebooks/ORB/ORB_106.xsa
+```
+
 ### Step4. Rebuild ORB_SLAM2_FPGA in ```<path-to-proj>/SW```
 ```
 cd <path-to-proj>/SW/ORB_SLAM2_FPGA
@@ -114,5 +120,7 @@ cd <path-to-proj>/SW/ORB_SLAM2_FPGA
 ```
 TUM example:
 ```
+sudo chmod 666 /dev/mem
+sudo chmod 666 /dev/xlnx
 ./Examples/RGB-D/rgbd_tum Vocabulary/RSBvoc.txt Examples/RGB-D/TUMX.yaml PATH_TO_SEQUENCE_FOLDER ASSOCIATIONS_FILE
 ```

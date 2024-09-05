@@ -1114,8 +1114,8 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
     assert(image.type() == CV_8UC1 );
 
     int buffer_len = image.cols * image.rows;
-    uint32_t* mapped_dma_cfg_base = reinterpret_cast<uint32_t*>(cma_mmap(0xA0000000, sizeof(uint32_t)*24));
-    uint32_t* mapped_dma_data_base = reinterpret_cast<uint32_t*>(cma_mmap(0xA0001000, sizeof(uint32_t)*24));
+    uint32_t* mapped_dma_cfg_base = reinterpret_cast<uint32_t*>(cma_mmap(0xA0000000, sizeof(uint32_t)*24));     // The base address refers to vivado address map
+    uint32_t* mapped_dma_data_base = reinterpret_cast<uint32_t*>(cma_mmap(0xA0010000, sizeof(uint32_t)*24));    // The base address refers to vivado address map
     uint32_t* addrptr_cfg_in = reinterpret_cast<uint32_t*>(cma_alloc(sizeof(uint32_t)*4, 0));
     uint8_t* addrptr_data_in = reinterpret_cast<uint8_t*>(cma_alloc(sizeof(uint8_t)*buffer_len, 0));
     uint32_t* addrptr_data_out  = reinterpret_cast<uint32_t*>(cma_alloc(sizeof(uint32_t)*16*257, 0));
