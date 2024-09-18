@@ -114,13 +114,19 @@ sudo -E python LoadBitstream.py SW/jupyter_notebooks/ORB/ORB_106.xsa
 ```
 
 ### Step4. Rebuild ORB_SLAM2_FPGA in ```<path-to-proj>/SW```
+> Before rebuilding ORB-SLAM_FPGA, you need to make sure that the **axi_dma_data** and **axi_dma_cfg** addresses in ```<path-to-proj>/SW/ORB_SLAM2_FPGA/src/ORBexeractor.cc``` remain the same as those in vivado. 
+> ![](data/address_map.png "address map")
+>>  ORBexeractor.cc:1118-1120 
+>> ```cpp
+>> uint32_t* mapped_dma_cfg_base = reinterpret_cast<uint32_t*>(cma_mmap(0xA0000000, sizeof(uint32_t)*24));
+>> uint32_t* mapped_dma_data_base = reinterpret_cast<uint32_t*>(cma_mmap(0xA0001000, sizeof(uint32_t)*24)); 
+>> ```
 ```
 cd <path-to-proj>/SW/ORB_SLAM2_FPGA
+sudo chmod +x build.sh
 ./build.sh
 ```
 TUM example:
 ```
-sudo chmod 666 /dev/mem
-sudo chmod 666 /dev/xlnx
-./Examples/RGB-D/rgbd_tum Vocabulary/RSBvoc.txt Examples/RGB-D/TUMX.yaml PATH_TO_SEQUENCE_FOLDER ASSOCIATIONS_FILE
+sudo -E ./Examples/RGB-D/rgbd_tum Vocabulary/RSBvoc.txt Examples/RGB-D/TUMX.yaml PATH_TO_SEQUENCE_FOLDER ASSOCIATIONS_FILE
 ```
