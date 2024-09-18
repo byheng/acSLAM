@@ -65,7 +65,7 @@
 extern "C" {
 #include <libxlnk_cma.h>
 }
-
+#define DEBUG
 using namespace cv;
 using namespace std;
 
@@ -1114,11 +1114,24 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
     assert(image.type() == CV_8UC1 );
 
     int buffer_len = image.cols * image.rows;
+    printf("Starting to map memery for dma_cfg and dma_data.\n");
     uint32_t* mapped_dma_cfg_base = reinterpret_cast<uint32_t*>(cma_mmap(0xA0000000, sizeof(uint32_t)*24));     // The base address refers to vivado address map
     uint32_t* mapped_dma_data_base = reinterpret_cast<uint32_t*>(cma_mmap(0xA0010000, sizeof(uint32_t)*24));    // The base address refers to vivado address map
+
+    printf("Starting to allocate memery for cfg_in data_in data_out.\n");
     uint32_t* addrptr_cfg_in = reinterpret_cast<uint32_t*>(cma_alloc(sizeof(uint32_t)*4, 0));
     uint8_t* addrptr_data_in = reinterpret_cast<uint8_t*>(cma_alloc(sizeof(uint8_t)*buffer_len, 0));
     uint32_t* addrptr_data_out  = reinterpret_cast<uint32_t*>(cma_alloc(sizeof(uint32_t)*16*257, 0));
+    if (addrptr_cfg_in == NULL) {
+        printf("Failed to allocate CMA memory\n");
+    }
+    if (addrptr_data_in == NULL) {
+        printf("Failed to allocate CMA memory for addrptr_data_in\n");
+    }
+    if (addrptr_data_out == NULL) {
+        printf("Failed to allocate CMA memory for addrptr_data_out\n");
+    }
+    printf("Allocate memery successfully.\n");
     
     Mat descriptors;
 
@@ -1222,7 +1235,7 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
                         level,
                         -1);
 #ifdef DEBUG
-            printf("%lf %lf %lf %lf %lf %d %d \n", Kp.pt.x, Kp.pt.y, Kp.size, Kp.angle, Kp.response, Kp.octave, Kp.class_id);
+            printf("Kp: %lf %lf %lf %lf %lf %d %d \n", Kp.pt.x, Kp.pt.y, Kp.size, Kp.angle, Kp.response, Kp.octave, Kp.class_id);
 #endif
             _keypoints.push_back(Kp);
             for (int i = 0; i < 8; i++){
