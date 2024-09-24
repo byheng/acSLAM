@@ -63,12 +63,19 @@ Compared with running ORB-SLAM2 on  the ARM processor, acSLAM achieves 2.1× and
 
 • System on Board: PYNQ Linux v2.5 running Linux 4.19.0-xilinx-v2019.1, based on Ubuntu 18.04
 
+### Support ZCU106
+>• Vivado® Design Suite 2022.1 or 2022.2
+>
+>• Board: ZCU106
+>
+>• System on Board: PYNQ Linux v3.0.1 , based on Ubuntu 22.04
+
 
 • Pangolin, OpenCV, Eigen3
 
 ### Step1. Rebuild ip in ```<path-to-proj>/HW```
 
-Open Vivado HLS 2019.1 command terminal and run these commands :
+Open Vivado HLS 2019.1(2022.1 or 2022.2) command terminal and run these commands :
 
 ```
 cd <path-to-proj>/HW/hls
@@ -89,8 +96,14 @@ vivado_hls -f script.tcl
 
 ### Step2. Rebuild Vivado Project in ```<path-to-proj>/Vivado```
 
-Open Vivado 2019.1 command terminal and run these commands to rebuild Vivado project:
-NOTE:```ORB_extractor_1_bd.tcl``` only use for ZCU104, another script file ```ORB_106.tcl``` use for ZCU106
+Open Vivado 2019.1（2022.1 or 2022.2） command terminal and run these commands to rebuild Vivado project:
+> NOTE: ```ORB_extractor_1_bd.tcl``` only use for ZCU104, another script file ```ORB_106.tcl``` use for ZCU106
+
+> ```ORB_106.tcl``` 适用于 Vivado 2022.1，如果需要使用 Vivado 2022.2，需要在```ORB_106.tcl```中修改以下内容：
+> ```
+> # set scripts_vivado_version 2022.1
+> set scripts_vivado_version 2022.2
+> ```
 ```
 cd <path-to-proj>/Vivado
 source ./ORB_extractor_1_bd.tcl # for ZCU104

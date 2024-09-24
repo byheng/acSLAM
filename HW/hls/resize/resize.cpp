@@ -22,14 +22,14 @@
 
 using namespace std;
 
-ap_ufixed<16, 2> scale;
+ap_ufixed<16, 2> scale; // ap_ufixed类型表示无符号定点数，数据宽度为16位，整数位数为2位
 ap_ufixed<16, 2> inv_scale;
-ap_uint<32> width;
+ap_uint<32> width; // ap_uint类型表示无符号整数，数据宽度为32位
 ap_uint<32> height;
-ap_ufixed<WIDTH_BIT + 8, WIDTH_BIT> new_width;
+ap_ufixed<WIDTH_BIT + 8, WIDTH_BIT> new_width; // ap_ufixed类型表示无符号定点数，数据宽度为WIDTH_BIT+8位，整数位数为WIDTH_BIT位
 ap_ufixed<HEIGHT_BIT + 8, HEIGHT_BIT> new_height;
 ap_uint<WIDTH_BIT> unit_num;
-const ap_ufixed<16, 2> scale_1 = 1;
+const ap_ufixed<16, 2> scale_1 = 1; 
 
 void process(hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, hls::stream<ap_axiu<OUTPUT_STREAM_BIT, 1, 1, 1> > &outStream);
 
@@ -45,93 +45,98 @@ void process_select(hls::stream<ap_uint<PROCESS_BIT> > &outData, hls::stream<ap_
 
 void process_output(hls::stream<ap_uint<8 + PROCESS_BIT> > &selectData, hls::stream<ap_axiu<OUTPUT_STREAM_BIT, 1, 1, 1> > &outStream);
 
-void resize(hls::stream<ap_axiu<32, 1, 1, 1> > &cfgStream, hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, hls::stream<ap_axiu<32, 1, 1, 1> > &cfgoutStream, hls::stream<ap_axiu<OUTPUT_STREAM_BIT, 1, 1, 1> > &outStream)
+void resize(
+    hls::stream<ap_axiu<32, 1, 1, 1> > &cfgStream, // 配置输入流，数据宽度为 32 位，包含一个用户位、一个保留位和一个 ID 位。
+    hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, // 输入图像流
+    hls::stream<ap_axiu<32, 1, 1, 1> > &cfgoutStream, // 配置输出流
+    hls::stream<ap_axiu<OUTPUT_STREAM_BIT, 1, 1, 1> > &outStream // 输出图像流
+    )
 {
-#pragma HLS INTERFACE ap_ctrl_none port = return
-#pragma HLS INTERFACE axis register both port = cfgStream
-#pragma HLS INTERFACE axis register both port = srcStream
+// HLS INTERFACE 只在顶层函数中使用，用于指定函数的输入输出接口类型，包括数据接口类型、控制接口类型等。
+#pragma HLS INTERFACE ap_ctrl_none port = return // 该函数没有标准的控制信号（如启动、完成等），纯数据流处理，不需要外部控制信号来启动或停止。
+#pragma HLS INTERFACE axis register both port = cfgStream // AXI-Stream 接口类型，register用于数据在传输过程中寄存器锁存，both表示输入输出都使用寄存器锁存
+#pragma HLS INTERFACE axis register both port = srcStream 
 #pragma HLS INTERFACE axis register both port = cfgoutStream
 #pragma HLS INTERFACE axis register both port = outStream
     
-    process_cfg(cfgStream, cfgoutStream);
-    if (scale == 1)
-        process_scale_1(srcStream, outStream);
-    else
+    process_cfg(cfgStream, cfgoutStream); // 处理配置流
+    if (scale == 1) 
+        process_scale_1(srcStream, outStream); // 处理输入图像流
+    else 
         process(srcStream, outStream);
 }
 
-void process_cfg(hls::stream<ap_axiu<32, 1, 1, 1> > &cfgStream, hls::stream<ap_axiu<32, 1, 1, 1> > &cfgoutStream)
+void process_cfg(
+    hls::stream<ap_axiu<32, 1, 1, 1> > &cfgStream, 
+    hls::stream<ap_axiu<32, 1, 1, 1> > &cfgoutStream
+    )
 {
-#pragma HLS INLINE off
-    width = cfgStream.read().data;
-    height = cfgStream.read().data;
-    scale.range(15, 0) = cfgStream.read().data.range(15, 0);
-    inv_scale.range(15, 0) = cfgStream.read().data.range(15, 0);
-    ap_axiu<32, 1, 1, 1> cfgout;
-    new_width = width / scale;
-    new_width = my_floor<ap_ufixed<WIDTH_BIT + 8, WIDTH_BIT>, WIDTH_BIT + 8, WIDTH_BIT>(new_width);
-    new_height = height / scale;
-    new_height = my_floor<ap_ufixed<HEIGHT_BIT + 8, HEIGHT_BIT>, HEIGHT_BIT + 8, HEIGHT_BIT>(new_height);
-    ap_ufixed<WIDTH_BIT + 8, WIDTH_BIT> unit_num_ufixed = width;
-    unit_num_ufixed = my_ceil<ap_ufixed<WIDTH_BIT + 8, WIDTH_BIT>, WIDTH_BIT + 8, WIDTH_BIT>(unit_num_ufixed / PROCESS_NUM);
-    unit_num = unit_num_ufixed.range(WIDTH_BIT + 7, 8);
-    cfgout.data = new_width.range(WIDTH_BIT + 7, 8);
-    cfgout.keep = 0xF;
-    cfgout.last = 0;
+#pragma HLS INLINE off // 该函数不进行内联展开，不进行内联展开的函数将被调用时保持原样，不会展开到调用处。
+
+    // 读取配置流数据，配置流数据包含原始图像的宽度、高度、缩放比例和缩放比例的倒数
+    width = cfgStream.read().data; // 读取第1个数据：原始图像宽度
+    height = cfgStream.read().data; // 读取第2个数据：原始图像高度
+    scale.range(15, 0) = cfgStream.read().data.range(15, 0); // 读取第3个数据的低16位：缩放比例
+    inv_scale.range(15, 0) = cfgStream.read().data.range(15, 0); // 读取第4个数据的低16位：缩放比例的倒数（反缩放比例）
+
+    // 计算缩放后的图像宽度和高度
+    ap_axiu<32, 1, 1, 1> cfgout; // 配置输出流数据类型，数据宽度为 32 位
+    new_width = width / scale; // 计算缩放后的图像宽度
+    new_width = my_floor<ap_ufixed<WIDTH_BIT + 8, WIDTH_BIT>, WIDTH_BIT + 8, WIDTH_BIT>(new_width); // 向下取整
+    new_height = height / scale; // 计算缩放后的图像高度
+    new_height = my_floor<ap_ufixed<HEIGHT_BIT + 8, HEIGHT_BIT>, HEIGHT_BIT + 8, HEIGHT_BIT>(new_height); // 向下取整
+
+    // 将每行像素分成 unit_num 个单元，每个单元含有 16 个像素
+    ap_ufixed<WIDTH_BIT + 8, WIDTH_BIT> unit_num_ufixed = width; // 计算每个单元的像素数
+    unit_num_ufixed = my_ceil<ap_ufixed<WIDTH_BIT + 8, WIDTH_BIT>, WIDTH_BIT + 8, WIDTH_BIT>(unit_num_ufixed / PROCESS_NUM);// 计算每个单元的像素数并向上取整
+    unit_num = unit_num_ufixed.range(WIDTH_BIT + 7, 8); // 取出每个单元的像素数的整数部分
+
+    // 将缩放后的图像宽度和高度写入配置输出流
+    cfgout.data = new_width.range(WIDTH_BIT + 7, 8); // 将缩放后的图像宽度的整数部分写入配置输出流
+    cfgout.keep = 0xF; // 保持所有数据，即4个字节（cfgout的数据宽度为 32 位，32 / 8 = 4）
+    cfgout.last = 0; // 非最后一个数据
     cfgoutStream.write(cfgout);
-    cfgout.data = new_height.range(HEIGHT_BIT + 7, 8);
+    cfgout.data = new_height.range(HEIGHT_BIT + 7, 8); // 将缩放后的图像高度的整数部分写入配置输出流
     cfgout.keep = 0xF;
-    cfgout.last = 1;
+    cfgout.last = 1; // 最后一个数据
     cfgoutStream.write(cfgout);
 }
 
-void process_scale_1(hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, hls::stream<ap_axiu<OUTPUT_STREAM_BIT, 1, 1, 1> > &outStream)
+// 处理缩放比例为 1 的输入图像流
+void process_scale_1(
+    hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, // 输入图像流，数据宽度为 16 * 8 = 128 位
+    hls::stream<ap_axiu<OUTPUT_STREAM_BIT, 1, 1, 1> > &outStream // 输出图像流，数据宽度为 4 * 8 = 32 位
+    )
 {
-    ap_ufixed<PIXEL_NUM_BIT+8, PIXEL_NUM_BIT> read_tc = height*width;
-    read_tc = my_ceil<ap_ufixed<PIXEL_NUM_BIT+8, PIXEL_NUM_BIT>, PIXEL_NUM_BIT+8, PIXEL_NUM_BIT>(read_tc / INPUT_PIXEL_NUM);
-    ap_uint<PIXEL_NUM_BIT> read_tc_uint = read_tc;
-    ap_uint<PIXEL_NUM_BIT> read_ind = 0;
+    ap_ufixed<PIXEL_NUM_BIT+8, PIXEL_NUM_BIT> read_tc = height*width; // 计算原始图像的像素总数
+    read_tc = my_ceil<ap_ufixed<PIXEL_NUM_BIT+8, PIXEL_NUM_BIT>, PIXEL_NUM_BIT+8, PIXEL_NUM_BIT>(read_tc / INPUT_PIXEL_NUM); // 原始图像的像素数分为16个线程
+    ap_uint<PIXEL_NUM_BIT> read_tc_uint = read_tc; // 每个线程像素数的整数部分
+    ap_uint<PIXEL_NUM_BIT> read_ind = 0; // 读取索引
     ap_uint<8> pixel_num = 0;
-    ap_uint<8> rmn_num = 0;
+    ap_uint<8> rmn_num = 0; // 剩余像素数：0-4
     ap_uint<INPUT_BIT> data = 0;
     ap_uint<OUTPUT_BIT> write_tmp = 0;
-    ap_uint<PIXEL_NUM_BIT> p_cnt = 0;
+    ap_uint<PIXEL_NUM_BIT> p_cnt = 0; // 已传输像素数
     ap_axiu<OUTPUT_STREAM_BIT, 1, 1, 1> out;
-    while (read_ind < read_tc_uint || rmn_num >= OUTPUT_PIXEL_NUM)
+    while (read_ind < read_tc_uint || rmn_num >= OUTPUT_PIXEL_NUM) // 
     {
+// 优化硬件设计中的循环和数据流，以提高性能
 #pragma HLS DEPENDENCE variable=rmn_num inter RAW false
 #pragma HLS DEPENDENCE variable=read_ind intra RAW false
-#pragma HLS PIPELINE
-        if (rmn_num >= OUTPUT_PIXEL_NUM)
-        // if the remaining number of pixels in this module is greater than OUTPUT_PIXEL_NUM
+#pragma HLS PIPELINE // 用于启用循环的流水线化
+        if (rmn_num < OUTPUT_PIXEL_NUM) // 读取 16 个像素的输入图像流数据，并传输其中前 4 个像素的数据
         {
-            rmn_num = rmn_num - OUTPUT_PIXEL_NUM;
-            out.data = write_tmp;
-            for (ap_uint<8> i = 0; i < OUTPUT_BIT >> 3; i++)
-#pragma HLS UNROLL
-                out.keep.range(i, i) = 1;
-            if (p_cnt == width * height && rmn_num == 0)
-                out.last = 1;
+            data = srcStream.read().data; // 读取输入图像流数据,数据宽度为 16 * 8 = 128 位
+            if (read_ind == read_tc_uint - 1) // 判断是否为最后一个线程
+                pixel_num = height * width - INPUT_PIXEL_NUM * (read_tc_uint - 1); // 最后剩余的不足 16 的像素数（为什么不对16取模？）
             else
-                out.last = 0;
-            outStream.write(out);
-            write_tmp = 0;
-            if (rmn_num > 0)
-                write_tmp = data.range(pixel_num * PIXEL_BIT - 1, (pixel_num - rmn_num) * PIXEL_BIT);
-        }
-        else
-        {
-            data = srcStream.read().data;
-            if (read_ind == read_tc_uint - 1)
-                pixel_num = height * width - INPUT_PIXEL_NUM * (read_tc_uint - 1);
-            else
-                pixel_num = INPUT_PIXEL_NUM;
-            p_cnt = p_cnt + pixel_num;
+                pixel_num = INPUT_PIXEL_NUM; // 16
+            p_cnt = p_cnt + pixel_num; // 更新已经传输的像素数量
             read_ind = read_ind + 1;
-            if (rmn_num + pixel_num >= OUTPUT_PIXEL_NUM)
+            if (rmn_num + pixel_num >= OUTPUT_PIXEL_NUM) // 正常处理；如果剩余像素数加上当前线程的像素数大于等于 4
             {
-                write_tmp.range(OUTPUT_BIT - 1, rmn_num * PIXEL_BIT) = data.range(OUTPUT_BIT - 1 - rmn_num * PIXEL_BIT, 0);
-                rmn_num = rmn_num + pixel_num - OUTPUT_PIXEL_NUM;
+                write_tmp.range(OUTPUT_BIT - 1, rmn_num * PIXEL_BIT) = data.range(OUTPUT_BIT - 1 - rmn_num * PIXEL_BIT, 0); // 传输第一组 4 个像素数据
+                rmn_num = rmn_num + pixel_num - OUTPUT_PIXEL_NUM; // 更新剩余像素数
                 out.data = write_tmp;
                 for (ap_uint<8> i = 0; i < OUTPUT_BIT >> 3; i++)
 #pragma HLS UNROLL
@@ -144,19 +149,36 @@ void process_scale_1(hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream
                 write_tmp = 0;
                 if (rmn_num > 0)
                 {
-                    write_tmp = data.range(pixel_num * PIXEL_BIT - 1, (pixel_num - rmn_num) * PIXEL_BIT);
+                    write_tmp = data.range(pixel_num * PIXEL_BIT - 1, (pixel_num - rmn_num) * PIXEL_BIT); // 将第二组 4 像素输入图像数据，写入缓冲区
                 }
             }
-            else
+            else // 如果剩余像素数加上当前线程的像素数小于 4，不足以填充满输出数据
             {
-                if (pixel_num > 0)
+                if (pixel_num > 0) // 当然仍有未传输的像素数据
                 {
-                    write_tmp.range((rmn_num + pixel_num) * PIXEL_BIT - 1, rmn_num * PIXEL_BIT) = data.range(pixel_num * PIXEL_BIT - 1, 0);
+                    write_tmp.range((rmn_num + pixel_num) * PIXEL_BIT - 1, rmn_num * PIXEL_BIT) = data.range(pixel_num * PIXEL_BIT - 1, 0); // 传输最后剩余的不足 16 的像素
                 }
-                rmn_num = rmn_num + pixel_num;
+                rmn_num = rmn_num + pixel_num; // 更新剩余像素数
             }
         }
-    }
+        else // 传输第二、三、四个 4 字节数据
+        {
+            rmn_num = rmn_num - OUTPUT_PIXEL_NUM; // 更新剩余像素数
+            out.data = write_tmp; 
+            for (ap_uint<8> i = 0; i < OUTPUT_BIT >> 3; i++) // 输出数据的保持位，右移三位相当于除以8，即输出数据的字节数
+#pragma HLS UNROLL // 循环展开
+                out.keep.range(i, i) = 1; // 保持位，表示数据有效，即数据的每个字节都有效
+            if (p_cnt == width * height && rmn_num == 0) // 
+                out.last = 1; // 最后一个数据
+            else
+                out.last = 0; // 非最后一个数据
+            outStream.write(out); // 传输输出数据
+            write_tmp = 0;  // 输出数据清零
+            if (rmn_num > 0) // 
+                write_tmp = data.range(pixel_num * PIXEL_BIT - 1, (pixel_num - rmn_num) * PIXEL_BIT); 
+        }
+    } // while
+
     if (rmn_num > 0)
     {
         out.data = write_tmp;
@@ -168,15 +190,22 @@ void process_scale_1(hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream
     }
 }
 
-void process(hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, hls::stream<ap_axiu<OUTPUT_STREAM_BIT, 1, 1, 1> > &outStream)
+void process(
+    hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, // 输入图像流
+    hls::stream<ap_axiu<OUTPUT_STREAM_BIT, 1, 1, 1> > &outStream // 输出图像流
+    )
 {
-#pragma HLS DATAFLOW
+#pragma HLS DATAFLOW // 优化支持函数或循环中的操作在前一个函数或循环尚未完成其所有操作时就开始操作
+
     hls::stream<ap_uint<PROCESS_BIT> > pixelData;
 #pragma HLS STREAM variable = pixelData depth = 2 dim = 1
+
     hls::stream<ap_uint<PROCESS_BIT> > outData;
 #pragma HLS STREAM variable = outData depth = 2 dim = 1
+
     hls::stream<ap_uint<8 + PROCESS_BIT> > selectData;
 #pragma HLS STREAM variable = selectData depth = 2 dim = 1
+
     process_input(srcStream, pixelData);
     process_buf(pixelData, outData);
     process_select(outData, selectData);
@@ -195,7 +224,10 @@ void process(hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, hls::s
 #endif
 }
 
-void process_input(hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, hls::stream<ap_uint<PROCESS_BIT> > &pixelData)
+void process_input(
+    hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, // 输入图像流，数据宽度为 16 * 8 = 128 位
+    hls::stream<ap_uint<PROCESS_BIT> > &pixelData // 128 位宽
+    )
 {
 #pragma HLS INLINE off
     ap_uint<PIXEL_NUM_BIT> cnt = 0;
@@ -206,27 +238,27 @@ void process_input(hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, 
     ap_uint<11> rmn_num = 0;
     ap_uint<11> write_num = 0;
     ap_uint<PROCESS_BIT> write_tmp = 0;
-    for (ap_uint<HEIGHT_BIT> i = 0; i < height; i++)
+    for (ap_uint<HEIGHT_BIT> i = 0; i < height; i++) // 外层循环，遍历图像每一行
     {
-        for (ap_uint<WIDTH_BIT> j = 0; j < unit_num; j++)
+        for (ap_uint<WIDTH_BIT> j = 0; j < unit_num; j++) // 内层循环，处理图像每一行像素，将每行像素分成 unit_num 个单元，每个单元含有 16 个像素
         {
 #pragma HLS PIPELINE
-            if (j == unit_num - 1)
-                write_num = (width - PROCESS_NUM * (unit_num - 1)) * PIXEL_BIT;
+            if (j == unit_num - 1) // 判断是否为最后一个单元
+                write_num = (width - PROCESS_NUM * (unit_num - 1)) * PIXEL_BIT; // 最后一个单元的像素数
             else
-                write_num = PROCESS_NUM * PIXEL_BIT;
+                write_num = PROCESS_NUM * PIXEL_BIT; // 16 * 8 = 128，每个单元含有 16 个像素
 
-            if (rmn_num >= write_num)
+            if (rmn_num >= write_num) // 处理一个完整的单元的剩余部分数据
             {
                 write_tmp = 0;
                 write_tmp.range(write_num - 1, 0) = data.range(INPUT_BIT - rmn_num + write_num - 1, INPUT_BIT - rmn_num);
                 rmn_num = rmn_num - write_num;
             }
-            else
+            else // 处理一个完整的单元的第一部分数据
             {
-                dataIn = srcStream.read();
-                prv_data = data;
-                data = dataIn.data;
+                dataIn = srcStream.read(); // 读取输入图像流数据，数据宽度为 16 * 8 = 128 位，16个像素数据
+                prv_data = data; // 保存上一次的数据
+                data = dataIn.data; // 读取输入图像流数据，新数据
                 if (rmn_num > 0)
                 {
                     write_tmp = 0;
@@ -246,7 +278,10 @@ void process_input(hls::stream<ap_axiu<INPUT_STREAM_BIT, 1, 1, 1> > &srcStream, 
     }
 }
 
-void process_buf(hls::stream<ap_uint<PROCESS_BIT> > &pixelData, hls::stream<ap_uint<PROCESS_BIT> > &outData)
+void process_buf(
+    hls::stream<ap_uint<PROCESS_BIT> > &pixelData, 
+    hls::stream<ap_uint<PROCESS_BIT> > &outData
+    )
 {
 #pragma HLS INLINE off
 
